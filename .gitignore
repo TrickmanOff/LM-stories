@@ -2,5 +2,8 @@
 .idea
 playground.ipynb
 
+lib/__pycache__
+
 *.txt
-encoder
+saved
+*.npy

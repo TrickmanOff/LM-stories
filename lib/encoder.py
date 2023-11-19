@@ -23,9 +23,10 @@ class TextEncoder:
 
 
 class BPETextEncoder(TextEncoder):
-    def __init__(self, encoder_dirpath: str | Path, vocab_size: int = 30_000, name: str = 'encoder'):
+    def __init__(self, encoder_dirpath: Union[str, Path] = 'saved/encoders', vocab_size: int = 30_000, name: str = 'encoder'):
         super().__init__()
         encoder_dirpath = Path(encoder_dirpath)
+        encoder_dirpath.mkdir(parents=True, exist_ok=True)
         self._encoder_dirpath = encoder_dirpath
         self._vocab_size = vocab_size
         self._model_prefix = str(encoder_dirpath / name)
@@ -39,18 +40,22 @@ class BPETextEncoder(TextEncoder):
 
     def train(self, corpus: Union[Iterable, Path, str], verbose: bool = False):
         print(f'Training SentencePiece tokenizer')
-        spm.SentencePieceTrainer.train(
-            input=corpus,
-            model_type='bpe',
-            model_prefix=self._model_prefix,
-            vocab_size=self.vocab_size,
-            pad_id=self.PAD_ID,
-            unk_id=self.UNK_ID,
-            bos_id=self.BOS_ID,
-            eos_id=self.EOS_ID,
-            unk_surface=' <unk>',
-            minloglevel=(0 if verbose else 1),
-        )
+        kwargs = {
+            'model_type': 'bpe',
+            'model_prefix': self._model_prefix,
+            'vocab_size': self.vocab_size,
+            'pad_id': self.PAD_ID,
+            'unk_id': self.UNK_ID,
+            'bos_id': self.BOS_ID,
+            'eos_id': self.EOS_ID,
+            'unk_surface': ' <unk>',
+            'minloglevel': (0 if verbose else 1),
+        }
+        if isinstance(corpus, Path) or isinstance(corpus, str):
+            kwargs['input'] = corpus
+        else:
+            kwargs['sentence_iterator'] = iter(corpus)
+        spm.SentencePieceTrainer.train(**kwargs)
         print('Successfully trained SentencePiece tokenizer')
         self.load()
 
