@@ -1,11 +1,11 @@
 import json
 import os
-from abc import abstractmethod
 from pathlib import Path
 from typing import List, Union
 
 import numpy as np
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from lib.encoder import TextEncoder
@@ -119,3 +119,23 @@ class TokenizedTextDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self._tokens_seqs)
+
+
+def collate_fn(tokens_seqs: List[List[int]]):
+    """
+    batch:
+
+    seqs :   tensor of shape (B, max_len)
+    length : tensor of shape (B,)
+    """
+    lengths = torch.LongTensor([len(seq) for seq in tokens_seqs])
+    max_len = lengths.max()
+    seqs_matrix = torch.zeros((len(tokens_seqs), max_len), dtype=torch.long)
+    for i, seq in enumerate(tokens_seqs):
+        seqs_matrix[i, :len(seq)] = torch.LongTensor(seq)
+    return seqs_matrix, lengths
+
+
+class TokenizedTextDataloader(DataLoader):
+    def __init__(self, dataset: TokenizedTextDataset, batch_size: int = 8):
+        super().__init__(dataset, batch_size=batch_size, collate_fn=collate_fn)
