@@ -37,11 +37,12 @@ class GreedyGenerator(TextGenerator):
     @torch.no_grad()
     def _generate_indices(self, prefix_indices: List[int]) -> List[int]:
         self._model.eval()
-        batch = torch.tensor(prefix_indices).unsqueeze(0)  # (1, len)
+        device = next(self._model.parameters()).device
+        batch = torch.tensor(prefix_indices).unsqueeze(0).to(device)  # (1, len)
         while batch.shape[-1] - 2 < self._max_len and batch[0, -1] != self._encoder.EOS_ID:
             next_token_logits = self._model(batch)[0, -1]  # (vocab_size,)
             next_token = next_token_logits.argmax()
-            batch = torch.concat((batch, torch.tensor([[next_token]])), axis=-1)
+            batch = torch.concat((batch, torch.tensor([[next_token]], device=device)), axis=-1)
 
         all_indices = batch.squeeze(0).tolist()
         if all_indices[-1] != self._encoder.EOS_ID:

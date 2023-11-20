@@ -13,7 +13,12 @@ from tqdm import tqdm
 
 from lib.logger import MLLogger
 from lib.text_generator import TextGenerator
-from lib.utils import get_lr, inf_loop
+from lib.utils import get_lr, inf_loop, get_device
+
+
+def move_batch_to_device(batch):
+    device = get_device()
+    batch['sequences'] = batch['sequences'].to(device)
 
 
 def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
@@ -28,6 +33,7 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
 
     total_len = len(dataloader) if len_epoch is None else len_epoch
     for batch_index, batch in enumerate(tqdm(dataloader, desc='Training epoch', total=total_len)):
+        move_batch_to_device(batch)
         # batch['sequences']: (B, max_len)
         next_tokens_logits = model(**batch)  # (B, max_len, vocab_size)
         tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
