@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import torch
+from torch.utils.data import Subset
 
 from lib.data import TinyStoriesTextDataset, TokenizedTextDataset, TokenizedTextDataloader
 from lib.encoder import BPETextEncoder
@@ -36,9 +37,10 @@ def train(num_epochs: int = 10):
     model_config = json.load(open(CONFIG_DIRPATH / 'model.json', 'r'))
     train_config = json.load(open(CONFIG_DIRPATH / 'train.json', 'r'))
 
-    encoder = BPETextEncoder(name='tiny_stories_encoder')
-
     text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
+    encoder = BPETextEncoder(name='tiny_stories_encoder')
+    if encoder._tokenizer is None:
+        encoder.train(iter(Subset(text_dataset, torch.arange(10*100_000))))
     dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
     train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
 
