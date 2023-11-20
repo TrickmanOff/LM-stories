@@ -133,7 +133,7 @@ def collate_fn(tokens_seqs: List[List[int]]):
     seqs_matrix = torch.zeros((len(tokens_seqs), max_len), dtype=torch.long)
     for i, seq in enumerate(tokens_seqs):
         seqs_matrix[i, :len(seq)] = torch.LongTensor(seq)
-    return seqs_matrix, lengths
+    return {'sequences': seqs_matrix, 'lengths': lengths}
 
 
 class TokenizedTextDataloader(DataLoader):

@@ -1,0 +1,4 @@
+{
+  "project_name": "LM-Stories",
+  "token_env_var_name": "WANDB_TOKEN"
+}

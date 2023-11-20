@@ -21,6 +21,10 @@ class TextEncoder:
     def decode(self, encoded_texts: Union[List[int], List[List[int]]]) -> Union[str, List[str]]:
         raise NotImplementedError()
 
+    @property
+    def vocab_size(self) -> int:
+        raise NotImplementedError()
+
 
 class BPETextEncoder(TextEncoder):
     def __init__(self, encoder_dirpath: Union[str, Path] = 'saved/encoders', vocab_size: int = 30_000, name: str = 'encoder'):

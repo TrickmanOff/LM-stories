@@ -2,8 +2,11 @@
 .idea
 playground.ipynb
 
+__pycache__
 lib/__pycache__
 
 *.txt
 saved
 *.npy
+
+wandb
