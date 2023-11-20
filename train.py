@@ -41,6 +41,7 @@ def train(num_epochs: int = 10):
     encoder = BPETextEncoder(name='tiny_stories_encoder')
     if encoder._tokenizer is None:
         encoder.train(iter(Subset(text_dataset, torch.arange(10*100_000))))
+    text_dataset = Subset(text_dataset, torch.arange(100_000))
     dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
     train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
 
