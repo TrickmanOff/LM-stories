@@ -1,8 +1,8 @@
 import contextlib
 import json
+from pathlib import Path
 
 import torch
-from torch.utils.data import Subset
 
 from lib.data import TinyStoriesTextDataset, TokenizedTextDataset, TokenizedTextDataloader
 from lib.encoder import BPETextEncoder
@@ -13,8 +13,11 @@ from lib.train import ModelTrainer
 from lib.utils import get_device
 
 
+CONFIG_DIRPATH = Path(__file__).parent / 'config'
+
+
 def init_logger(model_name: str = ''):
-    logger_config = json.load(open('config/logger.json', 'r'))
+    logger_config = json.load(open(CONFIG_DIRPATH / 'logger.json', 'r'))
 
     @contextlib.contextmanager
     def logger_cm():
@@ -29,9 +32,9 @@ def init_logger(model_name: str = ''):
 def train(num_epochs: int = 10):
     model_name = 'test'
 
-    paths_config = json.load(open('config/paths.json', 'r'))
-    model_config = json.load(open('config/model.json', 'r'))
-    train_config = json.load(open('config/train.json', 'r'))
+    paths_config = json.load(open(CONFIG_DIRPATH / 'paths.json', 'r'))
+    model_config = json.load(open(CONFIG_DIRPATH / 'model.json', 'r'))
+    train_config = json.load(open(CONFIG_DIRPATH / 'train.json', 'r'))
 
     encoder = BPETextEncoder(name='tiny_stories_encoder')
 
