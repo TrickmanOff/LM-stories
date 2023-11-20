@@ -31,13 +31,13 @@ def train(num_epochs: int = 10):
 
     paths_config = json.load(open('config/paths.json', 'r'))
     model_config = json.load(open('config/model.json', 'r'))
+    train_config = json.load(open('config/train.json', 'r'))
 
     encoder = BPETextEncoder(name='tiny_stories_encoder')
 
     text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
     dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
-    dataset = Subset(dataset, indices=torch.arange(40))
-    train_dataloader = TokenizedTextDataloader(dataset, batch_size=4)
+    train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
 
     # logger
     logger_cm_fn = init_logger(model_name)
@@ -48,7 +48,7 @@ def train(num_epochs: int = 10):
     model.to(device)
 
     # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=train_config['lr'])
 
     # scheduler
     scheduler = None
@@ -67,7 +67,8 @@ def train(num_epochs: int = 10):
     trainer.train(model, optimizer, train_dataloader, num_epochs=num_epochs, scheduler=scheduler,
                   logger_cm_fn=logger_cm_fn,
                   prefixes_examples=prefixes_examples,
-                  text_generator=text_generator)
+                  text_generator=text_generator,
+                  len_epoch=train_config['len_epoch'])
 
     return model
 

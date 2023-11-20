@@ -13,11 +13,12 @@ from tqdm import tqdm
 
 from lib.logger import MLLogger
 from lib.text_generator import TextGenerator
-from lib.utils import get_lr
+from lib.utils import get_lr, inf_loop
 
 
 def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
-                criterion: nn.Module, scheduler: Optional[Any] = None) -> float:
+                criterion: nn.Module, scheduler: Optional[Any] = None,
+                len_epoch: Optional[int] = None) -> float:
     model.train()
 
     total_loss = 0.
@@ -25,7 +26,8 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
 
     device = next(model.parameters()).device
 
-    for batch in tqdm(dataloader, desc='Training epoch'):
+    total_len = len(dataloader) if len_epoch is None else len_epoch
+    for batch_index, batch in enumerate(tqdm(dataloader, desc='Training epoch', total=total_len)):
         # batch['sequences']: (B, max_len)
         next_tokens_logits = model(**batch)  # (B, max_len, vocab_size)
         tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
@@ -44,6 +46,9 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
         total_loss += loss * seqs_len
         total_seqs_len += seqs_len
 
+        if batch_index + 1 >= len_epoch:
+            break
+
     return total_loss / total_seqs_len
 
 
@@ -51,6 +56,7 @@ class ModelTrainer:
     def train(self, model, optimizer: torch.optim.Optimizer,
               train_dataloader: DataLoader,
               num_epochs: int,
+              len_epoch: Optional[int] = None,
               val_dataloader: Optional[DataLoader] = None,
               scheduler: Optional[Any] = None,
               logger_cm_fn: Optional[Callable[[], ContextManager[MLLogger]]] = None,
@@ -65,6 +71,9 @@ class ModelTrainer:
         else:
             logger_cm = logger_cm_fn()
 
+        if len_epoch is not None:
+            train_dataloader = inf_loop(train_dataloader)
+
         with logger_cm as logger:
             while epoch <= num_epochs:
                 if logger is not None:
@@ -72,7 +81,7 @@ class ModelTrainer:
 
                 train_loss = train_epoch(
                     model, dataloader=train_dataloader, optimizer=optimizer, criterion=criterion,
-                    scheduler=scheduler,
+                    scheduler=scheduler, len_epoch=len_epoch
                 )
 
                 if scheduler is not None:

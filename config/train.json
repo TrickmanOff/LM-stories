@@ -1,0 +1,5 @@
+{
+  "batch_size": 10,
+  "len_epoch": 20,
+  "lr": 1e-3
+}

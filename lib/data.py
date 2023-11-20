@@ -1,7 +1,8 @@
 import json
 import os
+import shutil
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -9,6 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from lib.encoder import TextEncoder
+from lib.utils import download_file
 
 
 class TextDataset(Dataset):
@@ -24,21 +26,28 @@ class TextDataset(Dataset):
 
 
 class TinyStoriesTextDataset(TextDataset):
-    # URL = 'https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStories_all_data.tar.gz'
+    URL = 'https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStories_all_data.tar.gz'
 
-    def __init__(self, data_dirpath: Union[str, Path] = 'data/tiny-stories',
+    def __init__(self, data_dir: Union[str, Path] = 'data/tiny-stories',
+                 data_writeable_dir: Optional[Union[str, Path]] = None,
                  filtered_txts_filename: str = 'filtered.txt',
                  max_text_len: int = 1_000):
-        self._dataset_dirpath = Path(data_dirpath)
-        # self._last_chunk = None
-        # self._last_chunk_index = -1
+        if data_writeable_dir is None:
+            data_writeable_dir = Path(data_dir)
+        self._data_writeable_dir = data_writeable_dir
+        self._dataset_dirpath = Path(data_dir)
+
+        self._data_writeable_dir.mkdir(parents=True, exist_ok=True)
+
         if not self._dataset_dirpath.exists():
-            raise RuntimeError(f'Directory "{data_dirpath}" does not exist')
-        # self._chunk_size = 100_000
-        # self._last_chunk_size = len(json.load(open(self._chunks_filepaths[-1], 'r')))
-        texts_filepath = self._dataset_dirpath / filtered_txts_filename
+            raise RuntimeError(f'Directory "{self._dataset_dirpath}" does not exist')
+
+        texts_filepath = self._data_writeable_dir / filtered_txts_filename
         if not texts_filepath.exists():
             chunks_filepaths = self.get_chunks()
+            if len(chunks_filepaths) == 0:
+                self.download_dataset(self._dataset_dirpath)
+                chunks_filepaths = self.get_chunks()
             self._process_texts(texts_filepath, chunks_filepaths, max_text_len)
         super().__init__(texts_filepath)
 
@@ -63,18 +72,15 @@ class TinyStoriesTextDataset(TextDataset):
         chunk_filepaths = [self._dataset_dirpath / filename for filename in chunk_filenames]
         return chunk_filepaths
 
-    # def __getitem__(self, item: int) -> str:
-    #     chunk_idx = item // self._chunk_size
-    #     if self._last_chunk_index == chunk_idx:
-    #         chunk = self._last_chunk
-    #     else:
-    #         chunk = json.load(open(self._chunks_filepaths[chunk_idx], 'r'))
-    #     self._last_chunk = chunk
-    #     self._last_chunk_index = chunk_idx
-    #     return chunk[item % self._chunk_size]['story']
-    #
-    # def __len__(self) -> int:
-    #     return self._chunk_size * (len(self._chunks_filepaths) - 1) + self._last_chunk_size
+    def download_dataset(self, dirpath: Path):
+        arch_filename = self.URL.split('/')[-1]
+        arch_filepath = dirpath / arch_filename
+        if not os.path.exists(arch_filepath):
+            print('Downloading TinyStories dataset...')
+            download_file(self.URL, dirpath, arch_filename)
+        print('Unpacking archive...')
+        shutil.unpack_archive(arch_filepath, dirpath)
+        os.remove(str(arch_filepath))
 
 
 class TokenizedTextDataset(Dataset):
