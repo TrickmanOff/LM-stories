@@ -25,5 +25,3 @@
 ```commandline
 python3 train.py
 ```
-
-Пример обучения модели и её выходы - в `notebooks/demo_training.ipynb`.
