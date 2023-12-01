@@ -16,7 +16,7 @@ from lib.utils import download_file
 class TextDataset(Dataset):
     def __init__(self, txts_filepath: Union[str, Path]):
         with open(txts_filepath, 'r') as file:
-            self._texts = file.readlines()
+            self._texts = [line.strip() for line in file.readlines()]
 
     def __getitem__(self, item: int) -> str:
         return self._texts[item]
