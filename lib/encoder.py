@@ -42,6 +42,10 @@ class BPETextEncoder(TextEncoder):
     def vocab_size(self) -> int:
         return self._vocab_size
 
+    @property
+    def is_trained(self) -> bool:
+        return self._tokenizer is not None
+
     def train(self, corpus: Union[Iterable, Path, str], verbose: bool = False):
         print(f'Training SentencePiece tokenizer')
         kwargs = {

@@ -1,6 +1,7 @@
 import contextlib
 import json
 from pathlib import Path
+from typing import Optional
 
 import torch
 from torch.utils.data import Subset
@@ -9,6 +10,7 @@ from lib.data import TinyStoriesTextDataset, TokenizedTextDataset, TokenizedText
 from lib.encoder import BPETextEncoder
 from lib.logger import WandbCM
 from lib.model import SimpleTransformer
+from lib.storage import ExperimentsStorage, ExternalStorage
 from lib.text_generator import GreedyGenerator
 from lib.train import ModelTrainer
 from lib.utils import get_device
@@ -30,17 +32,36 @@ def init_logger(model_name: str = ''):
     return logger_cm
 
 
-def train(num_epochs: int = 10):
+def train(num_epochs: int = 10, external_storage: Optional[ExternalStorage] = None):
+    print('The training script is being run...')
+    # run parameters (perfectly, should be specified in a config, but to keep it super simple)
     model_name = 'test'
+    run_name = None
+    encoder_name = 'tiny_stories_encoder'
+    save_epochs_period = 1
+    # -------------
 
+    # awful but very simple config processing
     paths_config = json.load(open(CONFIG_DIRPATH / 'paths.json', 'r'))
     model_config = json.load(open(CONFIG_DIRPATH / 'model.json', 'r'))
     train_config = json.load(open(CONFIG_DIRPATH / 'train.json', 'r'))
 
+    exps_storage = ExperimentsStorage(experiments_dir=paths_config.get('experiments_dir', 'saved/models'),
+                                      encoders_dir=paths_config.get('encoders_dir', 'saved/encoders'))
+    run_storage = exps_storage.get_run(exp_name=model_name, run_name=run_name, create_run_if_no=True)
+    run_storage.save_config(model_config)
+    # getting the dataset
     text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
-    encoder = BPETextEncoder(name='tiny_stories_encoder')
-    if encoder._tokenizer is None:
+
+    if external_storage is not None and encoder_name in external_storage.get_available_encoders():
+        print(f'The trained text encoder {encoder_name} will be downloaded')
+        external_storage.import_encoder(exps_storage, encoder_name)
+    encoder = BPETextEncoder(name=encoder_name, encoder_dirpath=exps_storage.get_encoder_dirpath(encoder_name))
+    if not encoder.is_trained:  # build encoder if it is not already ready
         encoder.train(iter(Subset(text_dataset, torch.arange(10*100_000))))
+    if external_storage is not None and encoder_name not in external_storage.get_available_encoders():
+        external_storage.export_encoder(exps_storage, encoder_name)
+
     text_dataset = Subset(text_dataset, torch.arange(100_000))
     dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
     train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
@@ -69,8 +90,10 @@ def train(num_epochs: int = 10):
         'When Tyler went on his first trip',
     ]
 
-    trainer = ModelTrainer()
-    trainer.train(model, optimizer, train_dataloader, num_epochs=num_epochs, scheduler=scheduler,
+    trainer = ModelTrainer(model=model, optimizer=optimizer, run_storage=run_storage,
+                           scheduler=scheduler, external_storage=external_storage,
+                           save_epochs_period=save_epochs_period)
+    trainer.train(train_dataloader, num_epochs=num_epochs,
                   logger_cm_fn=logger_cm_fn,
                   prefixes_examples=prefixes_examples,
                   text_generator=text_generator,

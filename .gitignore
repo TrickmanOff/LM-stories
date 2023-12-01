@@ -9,3 +9,5 @@ saved
 *.npy
 
 wandb
+
+client_secrets.json

@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from itertools import repeat
 
 import requests
@@ -6,6 +8,12 @@ from tqdm import tqdm
 
 
 DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+
+
+def write_json(content, fname):
+    fname = Path(fname)
+    with fname.open("wt") as handle:
+        json.dump(content, handle, indent=4, sort_keys=False)
 
 
 def get_device():
