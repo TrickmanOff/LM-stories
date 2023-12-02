@@ -62,7 +62,7 @@ class MLLogger:
         raise NotImplementedError()
 
     # optional for implementation
-    def log_generated_texts(self, texts: List[str]) -> None:
+    def log_table(self, name, columns, data) -> None:
         raise NotImplementedError()
 
 
@@ -82,10 +82,13 @@ class _WandbLogger(MLLogger):
         logged_dict[period] = period_index
         wandb.log(logged_dict)
 
-    def log_generated_texts(self, texts: List[str]) -> None:
-        data = [[text] for text in texts]
-        text_table = wandb.Table(columns=["text"], data=data)
-        wandb.log({'Generated texts': text_table})
+    def log_table(self, name, columns, data) -> None:
+        table = wandb.Table(columns=columns, data=data)
+        wandb.log({name: table})
+    # def log_generated_texts(self, texts: List[str]) -> None:
+    #     data = [[text] for text in texts]
+    #     text_table = wandb.Table(columns=["text"], data=data)
+    #     wandb.log({'Generated texts': text_table})
 
 
 def get_wandb_token(env_var_name: str = 'WANDB_TOKEN') -> str:

@@ -35,7 +35,7 @@ def init_logger(model_name: str = ''):
 def train(num_epochs: int = 10,
           model_name: str = 'test',
           run_name: Optional[str] = None,
-          encoder_name: str = 'tiny_stories_encoder',
+          encoder_name: str = 'tiny_stories_encoder_4k',
           save_epochs_period: int = 1,
           dtype: torch.dtype = torch.float32,
           external_storage: Optional[ExternalStorage] = None):
@@ -81,7 +81,6 @@ def train(num_epochs: int = 10,
     scheduler = None
 
     # text generator
-    text_generator = GreedyGenerator(model, encoder, max_len=200)
     prefixes_examples = [
         'Once upon a time',
         'Today Henry met Susie',
@@ -92,13 +91,14 @@ def train(num_epochs: int = 10,
     ]
 
     trainer = ModelTrainer(model=model, optimizer=optimizer, run_storage=run_storage,
+                           text_encoder=encoder,
                            scheduler=scheduler, external_storage=external_storage,
                            save_epochs_period=save_epochs_period)
     trainer.train(train_dataloader, num_epochs=num_epochs,
                   logger_cm_fn=logger_cm_fn,
                   prefixes_examples=prefixes_examples,
-                  text_generator=text_generator,
-                  len_epoch=train_config['len_epoch'])
+                  len_epoch=train_config['len_epoch'],
+                  max_gen_seq_len=256)
 
     return model
 

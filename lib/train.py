@@ -12,9 +12,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from lib.encoder import TextEncoder
 from lib.logger import MLLogger
 from lib.storage import ExternalStorage, RunStorage
-from lib.text_generator import TextGenerator
+from lib.text_generator import GreedyGenerator
 from lib.utils import get_device, get_grad_norm, get_lr, inf_loop
 
 
@@ -75,6 +76,7 @@ class ModelTrainer:
                  model: nn.Module,
                  optimizer: torch.optim.Optimizer,
                  run_storage: RunStorage,
+                 text_encoder: TextEncoder,
                  scheduler: Optional[Any] = None,
                  external_storage: Optional[ExternalStorage] = None,
                  save_epochs_period: int = -1,
@@ -82,6 +84,8 @@ class ModelTrainer:
         self.run_storage = run_storage
         self.external_storage = external_storage
         self.save_epochs_period = save_epochs_period
+
+        self.text_encoder = text_encoder
 
         self.model = model
         self.optimizer = optimizer
@@ -99,7 +103,7 @@ class ModelTrainer:
               val_dataloader: Optional[DataLoader] = None,
               logger_cm_fn: Optional[Callable[[], ContextManager[MLLogger]]] = None,
               prefixes_examples: Optional[List[str]] = None,
-              text_generator: Optional[TextGenerator] = None):
+              max_gen_seq_len: int = 256):
         epoch = self.start_epoch
 
         criterion = nn.CrossEntropyLoss(ignore_index=0)
@@ -141,20 +145,39 @@ class ModelTrainer:
                     logger.log_metrics(data=log_data, period='epoch', commit=False)
 
                 if prefixes_examples is not None and logger is not None:
-                    print('Generating examples...')
-                    generated_texts = [
-                        text_generator.generate_text(prefix=prefix)
-                        for prefix in prefixes_examples
-                    ]
-                    logger.log_generated_texts(generated_texts)
+                    self._log_predictions(prefixes_examples, logger)
 
                 if logger is not None:
                     logger.commit(period='epoch')
 
-                if (epoch - 1) % self.save_epochs_period == 0:
+                if epoch % self.save_epochs_period == 0:
                     self._save_checkpoint(epoch + 1)
 
                 epoch += 1
+
+    def _log_predictions(self, prefixes: List[str], logger: MLLogger,
+                         max_gen_seq_len: int = 256):
+        print('Generating examples...')
+
+        gen_kwargs = {
+            'model': self.model,
+            'encoder': self.text_encoder,
+            'max_len': max_gen_seq_len,
+        }
+        generators = {
+            'greedy': GreedyGenerator(**gen_kwargs),
+        }
+
+        columns = ['prefix'] + list(generators.keys())
+        data = []
+        for prefix in prefixes:
+            row = [prefix]
+            for generator in generators.values():
+                gen_text = generator.generate_text(prefix)
+                row.append(gen_text)
+            data.append(row)
+
+        logger.log_table('generated examples', columns, data)
 
     def _save_checkpoint(self, epoch: int):
         state = {
