@@ -18,13 +18,13 @@ from lib.utils import get_device, get_params_count
 CONFIG_DIRPATH = Path(__file__).parent / 'config'
 
 
-def init_logger(model_name: str = ''):
+def init_logger(wandb_run_name: str = ''):
     logger_config = json.load(open(CONFIG_DIRPATH / 'logger.json', 'r'))
 
     @contextlib.contextmanager
     def logger_cm():
         try:
-            with WandbCM(experiment_id=model_name, **logger_config) as wandb_logger:
+            with WandbCM(experiment_id=wandb_run_name, **logger_config) as wandb_logger:
                 yield wandb_logger
         finally:
             pass
@@ -32,6 +32,7 @@ def init_logger(model_name: str = ''):
 
 
 def train(model_name: str = 'test',
+          wandb_run_name: Optional[str] = None,
           num_epochs: Optional[int] = None,
           run_name: Optional[str] = None,
           encoder_name: str = 'tiny_stories_encoder_4k',
@@ -40,6 +41,7 @@ def train(model_name: str = 'test',
           model_config: Optional[Dict] = None,
           train_config: Optional[Dict] = None):
     print('The training script is being run...')
+    wandb_run_name = model_name if wandb_run_name is None else wandb_run_name
 
     # awful but very simple config processing
     paths_config = json.load(open(CONFIG_DIRPATH / 'paths.json', 'r'))
@@ -67,7 +69,7 @@ def train(model_name: str = 'test',
     train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
 
     # logger
-    logger_cm_fn = init_logger(model_name)
+    logger_cm_fn = init_logger(wandb_run_name)
 
     # model
     device = get_device()

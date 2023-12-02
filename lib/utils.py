@@ -48,6 +48,7 @@ def download_file(url, to_dirpath=None, to_filename=None):
     return local_filename
 
 
+@torch.no_grad()
 def get_grad_norm(model: nn.Module, norm_type=2) -> float:
     parameters = model.parameters()
     if isinstance(parameters, torch.Tensor):

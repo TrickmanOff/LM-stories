@@ -157,5 +157,6 @@ def collate_fn(tokens_seqs: List[List[int]]):
 
 
 class TokenizedTextDataloader(DataLoader):
-    def __init__(self, dataset: TokenizedTextDataset, batch_size: int = 8):
-        super().__init__(dataset, batch_size=batch_size, collate_fn=collate_fn)
+    def __init__(self, dataset: TokenizedTextDataset, batch_size: int = 8, shuffle: bool = True, drop_last: bool = True):
+        super().__init__(dataset, batch_size=batch_size, collate_fn=collate_fn,
+                         shuffle=shuffle, drop_last=drop_last)

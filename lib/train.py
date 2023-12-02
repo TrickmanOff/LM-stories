@@ -1,6 +1,5 @@
 """
 TODO:
-- checkpoints
 - validation
 """
 import contextlib
@@ -39,6 +38,7 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
 
     total_len = len(dataloader) if len_epoch is None else len_epoch
     for batch_index, batch in enumerate(tqdm(dataloader, desc='Training epoch', total=total_len)):
+        model.zero_grad()
         move_batch_to_device(batch)
         # batch['sequences']: (B, max_len)
         with torch.cuda.amp.autocast():
@@ -46,18 +46,17 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
             tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
             tgt_tokens = batch['sequences'][:, 1:].to(device)  # (B, max_len-1)
 
-            loss = criterion(tokens_logits, tgt_tokens)
+            loss = criterion(tokens_logits, tgt_tokens)  # assuming 'mean'-reduction: loss per token not considering padded values
 
         loss.backward()
         optimizer.step()
         if scheduler is not None:
             scheduler.step()
         sum_grad_norms += get_grad_norm(model)
-        model.zero_grad()
         num_batches += 1
 
         tgt_seq_lens = batch['lengths'] - 1  # all tokens except for the first one are predicted and used in loss
-        seqs_len = sum(tgt_seq_lens)
+        seqs_len = sum(tgt_seq_lens).item()
         processed_tokens += seqs_len
         total_loss += loss.item() * seqs_len
         total_seqs_len += seqs_len
@@ -148,10 +147,12 @@ class ModelTrainer:
                         # 'val/loss': val_loss.item(),
                         'lr': last_lr,
                     }
+                    for key, value in log_data.items():
+                        print(key, '\t', value)
                     logger.log_metrics(data=log_data, period='batch', commit=False)
 
                 if prefixes_examples is not None and logger is not None:
-                    self._log_predictions(prefixes_examples, logger)
+                    self._log_predictions(prefixes_examples, logger, max_gen_seq_len)
 
                 if logger is not None:
                     logger.commit(period='batch')
