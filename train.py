@@ -1,7 +1,7 @@
 import contextlib
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from torch.utils.data import Subset
@@ -31,19 +31,21 @@ def init_logger(model_name: str = ''):
     return logger_cm
 
 
-def train(num_epochs: int = 10,
-          model_name: str = 'test',
+def train(model_name: str = 'test',
+          num_epochs: Optional[int] = None,
           run_name: Optional[str] = None,
           encoder_name: str = 'tiny_stories_encoder_4k',
           save_epochs_period: int = 1,
           dtype: torch.dtype = torch.bfloat16,
-          external_storage: Optional[ExternalStorage] = None):
+          external_storage: Optional[ExternalStorage] = None,
+          model_config: Optional[Dict] = None,
+          train_config: Optional[Dict] = None):
     print('The training script is being run...')
 
     # awful but very simple config processing
     paths_config = json.load(open(CONFIG_DIRPATH / 'paths.json', 'r'))
-    model_config = json.load(open(CONFIG_DIRPATH / 'model.json', 'r'))
-    train_config = json.load(open(CONFIG_DIRPATH / 'train.json', 'r'))
+    model_config = json.load(open(CONFIG_DIRPATH / 'model.json', 'r')) if model_config is None else model_config
+    train_config = json.load(open(CONFIG_DIRPATH / 'train.json', 'r')) if train_config is None else train_config
 
     exps_storage = ExperimentsStorage(experiments_dir=paths_config.get('experiments_dir', 'saved/models'),
                                       encoders_dir=paths_config.get('encoders_dir', 'saved/encoders'))

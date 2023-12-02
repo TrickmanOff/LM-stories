@@ -98,12 +98,17 @@ class ModelTrainer:
 
     def train(self,
               train_dataloader: DataLoader,
-              num_epochs: int,
+              num_epochs: Optional[int] = None,
               len_epoch: Optional[int] = None,
               val_dataloader: Optional[DataLoader] = None,
               logger_cm_fn: Optional[Callable[[], ContextManager[MLLogger]]] = None,
               prefixes_examples: Optional[List[str]] = None,
               max_gen_seq_len: int = 256):
+        """
+        :param num_epochs: if None, then training is infinite
+        """
+        if num_epochs is None:
+            print('The training loop will not stop as `num_epochs` is None')
         epoch = self.start_epoch
 
         criterion = nn.CrossEntropyLoss(ignore_index=0)
@@ -119,9 +124,9 @@ class ModelTrainer:
         total_processed_tokens_cnt = 0
 
         with logger_cm as logger:
-            while epoch <= num_epochs:
+            while num_epochs is None or epoch <= num_epochs:
                 if logger is not None:
-                    logger.log_metrics(data={}, period='epoch', period_index=epoch, commit=False)
+                    logger.log_metrics(data={}, period='batch', period_index=epoch * len_epoch, commit=False)
 
                 epoch_metrics = train_epoch(
                     self.model, dataloader=train_dataloader, optimizer=self.optimizer, criterion=criterion,
@@ -142,13 +147,13 @@ class ModelTrainer:
                         # 'val/loss': val_loss.item(),
                         'lr': last_lr,
                     }
-                    logger.log_metrics(data=log_data, period='epoch', commit=False)
+                    logger.log_metrics(data=log_data, period='batch', commit=False)
 
                 if prefixes_examples is not None and logger is not None:
                     self._log_predictions(prefixes_examples, logger)
 
                 if logger is not None:
-                    logger.commit(period='epoch')
+                    logger.commit(period='batch')
 
                 if epoch % self.save_epochs_period == 0:
                     self._save_checkpoint(epoch + 1)
