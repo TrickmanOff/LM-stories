@@ -27,7 +27,7 @@ class TextEncoder:
 
 
 class BPETextEncoder(TextEncoder):
-    def __init__(self, encoder_dirpath: Union[str, Path] = 'saved/encoders', vocab_size: int = 30_000, name: str = 'encoder'):
+    def __init__(self, encoder_dirpath: Union[str, Path] = 'saved/encoders', vocab_size: int = 4_000, name: str = 'encoder'):
         super().__init__()
         encoder_dirpath = Path(encoder_dirpath)
         encoder_dirpath.mkdir(parents=True, exist_ok=True)

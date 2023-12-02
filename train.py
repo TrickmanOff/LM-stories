@@ -88,6 +88,7 @@ def train(num_epochs: int = 10,
         'Bob has always wanted',
         'Each Sunday Helen',
         'When Tyler went on his first trip',
+        'Misha has been playing with his robot for a long time',
     ]
 
     trainer = ModelTrainer(model=model, optimizer=optimizer, run_storage=run_storage,
