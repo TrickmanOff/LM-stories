@@ -87,7 +87,8 @@ class TinyStoriesTextDataset(TextDataset):
 
 
 class TokenizedTextDataset(Dataset):
-    def __init__(self, text_dataset: TextDataset, encoder: TextEncoder,
+    def __init__(self, text_dataset: TextDataset,
+                 encoder: TextEncoder,
                  data_dirpath: Union[str, Path],
                  max_seq_len: Optional[int] = 256,
                  **kwargs):

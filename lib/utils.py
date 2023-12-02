@@ -3,6 +3,7 @@ from pathlib import Path
 from itertools import repeat
 
 import requests
+import numpy as np
 import torch
 from torch import nn
 from tqdm import tqdm
@@ -59,3 +60,8 @@ def get_grad_norm(model: nn.Module, norm_type=2) -> float:
         norm_type,
     )
     return total_norm.item()
+
+
+def get_params_count(model: nn.Module) -> int:
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    return sum([np.prod(p.size()) for p in model_parameters])

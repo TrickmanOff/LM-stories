@@ -3,7 +3,7 @@ from torch import Tensor, nn
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, embed_dim, max_len: int = 5000):
+    def __init__(self, embed_dim, max_len: int = 512):
         """
         Inputs
             embed_dim - Hidden dimensionality of the input.

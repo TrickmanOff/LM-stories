@@ -11,9 +11,8 @@ from lib.encoder import BPETextEncoder
 from lib.logger import WandbCM
 from lib.model import SimpleTransformer
 from lib.storage import ExperimentsStorage, ExternalStorage
-from lib.text_generator import GreedyGenerator
 from lib.train import ModelTrainer
-from lib.utils import get_device
+from lib.utils import get_device, get_params_count
 
 
 CONFIG_DIRPATH = Path(__file__).parent / 'config'
@@ -72,6 +71,8 @@ def train(num_epochs: int = 10,
     # model
     device = get_device()
     model = SimpleTransformer(vocab_size=encoder.vocab_size, **model_config)
+    print(f'Model has {get_params_count(model)} trainable parameters')
+
     model.to(dtype=dtype, device=device)
 
     # optimizer
