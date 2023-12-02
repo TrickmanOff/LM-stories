@@ -41,7 +41,7 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
         model.zero_grad()
         move_batch_to_device(batch)
         # batch['sequences']: (B, max_len)
-        with torch.cuda.amp.autocast():
+        with torch.cuda.amp.autocast(dtype=torch.bfloat16) if torch.cuda.is_bf16_supported() else contextlib.nullcontext():
             next_tokens_logits = model(**batch)  # (B, max_len, vocab_size)
             tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
             tgt_tokens = batch['sequences'][:, 1:].to(device)  # (B, max_len-1)
@@ -58,6 +58,9 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
         tgt_seq_lens = batch['lengths'] - 1  # all tokens except for the first one are predicted and used in loss
         seqs_len = sum(tgt_seq_lens).item()
         processed_tokens += seqs_len
+        # with torch.no_grad():
+            # print(f'loss with mean reduction: {loss.item()}')
+            # print(f'loss with sum reduction: {loss.item() * seqs_len} == {nn.CrossEntropyLoss(ignore_index=0, reduction="sum")(tokens_logits, tgt_tokens)}')
         total_loss += loss.item() * seqs_len
         total_seqs_len += seqs_len
 

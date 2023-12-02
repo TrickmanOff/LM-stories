@@ -39,7 +39,8 @@ def train(model_name: str = 'test',
           save_epochs_period: int = 1,
           external_storage: Optional[ExternalStorage] = None,
           model_config: Optional[Dict] = None,
-          train_config: Optional[Dict] = None):
+          train_config: Optional[Dict] = None,
+          shuffle_dataset: bool = True):
     print('The training script is being run...')
     wandb_run_name = model_name if wandb_run_name is None else wandb_run_name
 
@@ -52,21 +53,29 @@ def train(model_name: str = 'test',
                                       encoders_dir=paths_config.get('encoders_dir', 'saved/encoders'))
     run_storage = exps_storage.get_run(exp_name=model_name, run_name=run_name, create_run_if_no=True)
     run_storage.save_config(model_config)
-    # getting the dataset
-    text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
+
+    text_dataset = None
 
     if external_storage is not None and encoder_name in external_storage.get_available_encoders():
         print(f'The trained text encoder {encoder_name} will be downloaded')
         external_storage.import_encoder(exps_storage, encoder_name)
     encoder = BPETextEncoder(name=encoder_name, encoder_dirpath=exps_storage.get_encoder_dirpath(encoder_name))
     if not encoder.is_trained:  # build encoder if it is not ready
+        text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
         encoder.train(iter(Subset(text_dataset, torch.arange(10*100_000))))
     if external_storage is not None and encoder_name not in external_storage.get_available_encoders():
         external_storage.export_encoder(exps_storage, encoder_name)
 
-    text_dataset = Subset(text_dataset, torch.arange(100_000))
-    dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
-    train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'])
+    try:
+        dataset = TokenizedTextDataset(None, encoder, paths_config['dataset_dir'])
+        train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'],
+                                                   shuffle=shuffle_dataset)
+    except Exception:
+        if text_dataset is None:
+            text_dataset = TinyStoriesTextDataset(paths_config['dataset_dir'])
+        dataset = TokenizedTextDataset(text_dataset, encoder, paths_config['dataset_dir'])
+        train_dataloader = TokenizedTextDataloader(dataset, batch_size=train_config['batch_size'],
+                                                   shuffle=shuffle_dataset)
 
     # logger
     logger_cm_fn = init_logger(wandb_run_name)
@@ -79,7 +88,8 @@ def train(model_name: str = 'test',
     model.to(device=device)
 
     # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=train_config['lr'])
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = torch.optim.Adam(trainable_params, lr=train_config['lr'])
 
     # scheduler
     scheduler = None

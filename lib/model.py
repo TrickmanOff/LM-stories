@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 from torch import Tensor, nn
 
@@ -55,7 +57,7 @@ class SimpleTransformer(nn.Module):
                                                                   dtype=torch.bool)
         else:
             mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=device)
-            mask = torch.triu(mask, 1)
+            mask = torch.triu(mask, 1).to(dtype=torch.bool)
             return mask
 
     def forward(self, sequences: Tensor, **kwargs) -> Tensor:
@@ -66,14 +68,16 @@ class SimpleTransformer(nn.Module):
         """
         src_mask = self.generate_square_subsequent_mask(sequences.shape[-1],
                                                         device=sequences.device)  # (max_len, max_len)
-        src_key_padding_mask = (sequences == 0).to(sequences.device)  # (B, max_len)
+        src_key_padding_mask = (sequences == 0).to(dtype=torch.bool, device=sequences.device)  # (B, max_len)
 
         embed_sequences = self.embed(sequences)              # (B, max_len, embed_dim)
         embed_sequences = self.pos_encoder(embed_sequences)  # (B, max_len, embed_dim)
 
-        next_tokens_embeds = self.transformer_encoder(embed_sequences,
-                                                      mask=src_mask,
-                                                      src_key_padding_mask=src_key_padding_mask,
-                                                      is_causal=True)   # (B, max_len, embed_dim)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=UserWarning)
+            next_tokens_embeds = self.transformer_encoder(embed_sequences,
+                                                          mask=src_mask,
+                                                          src_key_padding_mask=src_key_padding_mask,
+                                                          is_causal=True)   # (B, max_len, embed_dim)
         next_tokens_logits = self.head(next_tokens_embeds)  # (B, max_len, vocab_size)
         return next_tokens_logits
