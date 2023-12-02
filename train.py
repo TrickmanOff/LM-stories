@@ -32,14 +32,14 @@ def init_logger(model_name: str = ''):
     return logger_cm
 
 
-def train(num_epochs: int = 10, external_storage: Optional[ExternalStorage] = None):
+def train(num_epochs: int = 10,
+          model_name: str = 'test',
+          run_name: Optional[str] = None,
+          encoder_name: str = 'tiny_stories_encoder',
+          save_epochs_period: int = 1,
+          dtype: torch.dtype = torch.float32,
+          external_storage: Optional[ExternalStorage] = None):
     print('The training script is being run...')
-    # run parameters (perfectly, should be specified in a config, but to keep it super simple)
-    model_name = 'test'
-    run_name = None
-    encoder_name = 'tiny_stories_encoder'
-    save_epochs_period = 1
-    # -------------
 
     # awful but very simple config processing
     paths_config = json.load(open(CONFIG_DIRPATH / 'paths.json', 'r'))
@@ -57,7 +57,7 @@ def train(num_epochs: int = 10, external_storage: Optional[ExternalStorage] = No
         print(f'The trained text encoder {encoder_name} will be downloaded')
         external_storage.import_encoder(exps_storage, encoder_name)
     encoder = BPETextEncoder(name=encoder_name, encoder_dirpath=exps_storage.get_encoder_dirpath(encoder_name))
-    if not encoder.is_trained:  # build encoder if it is not already ready
+    if not encoder.is_trained:  # build encoder if it is not ready
         encoder.train(iter(Subset(text_dataset, torch.arange(10*100_000))))
     if external_storage is not None and encoder_name not in external_storage.get_available_encoders():
         external_storage.export_encoder(exps_storage, encoder_name)
@@ -72,7 +72,7 @@ def train(num_epochs: int = 10, external_storage: Optional[ExternalStorage] = No
     # model
     device = get_device()
     model = SimpleTransformer(vocab_size=encoder.vocab_size, **model_config)
-    model.to(device)
+    model.to(dtype=dtype, device=device)
 
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config['lr'])

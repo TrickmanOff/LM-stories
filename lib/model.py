@@ -46,13 +46,24 @@ class SimpleTransformer(nn.Module):
 
         self.head = nn.Linear(embed_dim, vocab_size)
 
+    def generate_square_subsequent_mask(self, seq_len: int, device=None) -> torch.BoolTensor:
+        if torch.__version__[:3] == 2.1:
+            return nn.Transformer.generate_square_subsequent_mask(seq_len,
+                                                                  device=seq_len,
+                                                                  dtype=torch.bool)
+        else:
+            mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=device)
+            mask = torch.triu(mask, 1)
+            return mask
+
     def forward(self, sequences: Tensor, **kwargs) -> Tensor:
         """
         sequences: (B, max_len)
 
         :return next_tokens_logits: (B, max_len, vocab_size)
         """
-        src_mask = nn.Transformer.generate_square_subsequent_mask(sequences.shape[-1], sequences.device)  # (max_len, max_len)
+        src_mask = self.generate_square_subsequent_mask(sequences.shape[-1],
+                                                        device=sequences.device)  # (max_len, max_len)
         src_key_padding_mask = (sequences == 0).to(sequences.device)  # (B, max_len)
 
         embed_sequences = self.embed(sequences)              # (B, max_len, embed_dim)
