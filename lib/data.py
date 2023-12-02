@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -94,40 +94,46 @@ class TokenizedTextDataset(Dataset):
         self._encoder = encoder
         self._text_dataset = text_dataset
         self._data_dirpath = Path(data_dirpath)
-        self._tokens_seqs = self.get_or_load_tokenized_texts(**kwargs)
+        self._tokenized_texts_data, self._tokenized_texts_index = self.get_or_load_tokenized_texts(**kwargs)
 
-    def get_or_load_tokenized_texts(self, **kwargs):
-        tokenized_texts_filepath = self._data_dirpath / 'tokenized_texts.npy'
-        if not tokenized_texts_filepath.exists():
-            self.tokenize_texts(tokenized_texts_filepath, **kwargs)
-        data = np.load(str(tokenized_texts_filepath), allow_pickle=True)
-        tokens_rows, lens = data[()]['tokenized_sequences'], data[()]['length']
-        tokens_seqs = []
-        for row, len in zip(tokens_rows, lens):
-            tokens_seqs.append(row[:len].tolist())
-        return tokens_seqs
+    def get_or_load_tokenized_texts(self, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        :return: data, index
+        """
+        data_filepath = self._data_dirpath / 'tokenized_texts_data.npy'
+        index_filepath = self._data_dirpath / 'tokenized_texts_index.npy'
+        if not data_filepath.exists() or not index_filepath.exists():
+            self.tokenize_texts(data_filepath, index_filepath, **kwargs)
+        data = np.load(str(data_filepath))
+        index = np.load(str(index_filepath))
+        return data, index
 
-    def tokenize_texts(self, target_filepath: Path, **kwargs):
+    def tokenize_texts(self, data_filepath: Path, index_filepath: Path, **kwargs):
         print('Tokenizing texts...')
-        tokens_seqs = [self.encoder.encode(text, **kwargs) for text in tqdm(self._text_dataset)]
-        lens = np.array([len(seq) for seq in tokens_seqs], dtype=np.int32)
-        max_len = lens.max()
-        seqs_matrix = np.full((len(self._text_dataset), max_len), fill_value=self.encoder.PAD_ID, dtype=np.int32)
-        for i, seq in enumerate(tokens_seqs):
-            seqs_matrix[i, :len(seq)] = seq
+        tokens_seqs = [
+            np.array(self.encoder.encode(text, **kwargs), dtype=np.int16)
+            for text in tqdm(self._text_dataset)
+        ]
+        lens = np.array([0] + [len(seq) for seq in tokens_seqs], dtype=np.int64)
+        cum_lens = np.cumsum(lens)
+        flattened_tokens_seqs = np.hstack(tokens_seqs)
 
-        data = {'tokenized_sequences': seqs_matrix, 'length': lens}
-        np.save(str(target_filepath), data)
+        np.save(str(data_filepath), flattened_tokens_seqs)
+        np.save(str(index_filepath), cum_lens)
 
     @property
     def encoder(self) -> TextEncoder:
         return self._encoder
 
     def __getitem__(self, item: int) -> List[int]:
-        return self._tokens_seqs[item]
+        index = self._tokenized_texts_index
+        l = index[item]
+        r = index[item + 1]
+        # [l, r)
+        return self._tokenized_texts_data[l:r].tolist()
 
     def __len__(self) -> int:
-        return len(self._tokens_seqs)
+        return len(self._tokenized_texts_index) - 1
 
 
 def collate_fn(tokens_seqs: List[List[int]]):
