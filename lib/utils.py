@@ -4,6 +4,7 @@ from itertools import repeat
 
 import requests
 import torch
+from torch import nn
 from tqdm import tqdm
 
 
@@ -44,3 +45,17 @@ def download_file(url, to_dirpath=None, to_filename=None):
             for chunk in tqdm(r.iter_content(chunk_size=8192), total=total, desc='Downloading file'):
                 f.write(chunk)
     return local_filename
+
+
+def get_grad_norm(model: nn.Module, norm_type=2) -> float:
+    parameters = model.parameters()
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    parameters = [p for p in parameters if p.grad is not None]
+    total_norm = torch.norm(
+        torch.stack(
+            [torch.norm(p.grad.detach(), norm_type).cpu() for p in parameters]
+        ),
+        norm_type,
+    )
+    return total_norm.item()

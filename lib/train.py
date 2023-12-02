@@ -5,7 +5,7 @@ TODO:
 """
 import contextlib
 from pathlib import Path
-from typing import Any, Callable, ContextManager, List, Optional
+from typing import Any, Callable, ContextManager, Dict, List, Optional
 
 import torch
 from torch import nn
@@ -15,7 +15,7 @@ from tqdm import tqdm
 from lib.logger import MLLogger
 from lib.storage import ExternalStorage, RunStorage
 from lib.text_generator import TextGenerator
-from lib.utils import get_lr, inf_loop, get_device
+from lib.utils import get_device, get_grad_norm, get_lr, inf_loop
 
 
 def move_batch_to_device(batch):
@@ -25,11 +25,14 @@ def move_batch_to_device(batch):
 
 def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
                 criterion: nn.Module, scheduler: Optional[Any] = None,
-                len_epoch: Optional[int] = None) -> float:
+                len_epoch: Optional[int] = None) -> Dict[str, Any]:
     model.train()
 
+    processed_tokens = 0
     total_loss = 0.
     total_seqs_len = 0
+    sum_grad_norms = 0.
+    num_batches = 0
 
     device = next(model.parameters()).device
 
@@ -47,17 +50,24 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
         optimizer.step()
         if scheduler is not None:
             scheduler.step()
+        sum_grad_norms += get_grad_norm(model)
         model.zero_grad()
+        num_batches += 1
 
-        tgt_seq_lens = batch['lengths']
+        tgt_seq_lens = batch['lengths'] - 1  # all tokens except for the first one are predicted and used in loss
         seqs_len = sum(tgt_seq_lens)
-        total_loss += loss * seqs_len
+        processed_tokens += seqs_len
+        total_loss += loss.item() * seqs_len
         total_seqs_len += seqs_len
 
         if batch_index + 1 >= len_epoch:
             break
 
-    return total_loss / total_seqs_len
+    return {
+        'loss': total_loss / total_seqs_len,
+        'tokens': processed_tokens,
+        'grad_norm': sum_grad_norms / num_batches,
+    }
 
 
 class ModelTrainer:
@@ -102,15 +112,18 @@ class ModelTrainer:
         if len_epoch is not None:
             train_dataloader = inf_loop(train_dataloader)
 
+        total_processed_tokens_cnt = 0
+
         with logger_cm as logger:
             while epoch <= num_epochs:
                 if logger is not None:
                     logger.log_metrics(data={}, period='epoch', period_index=epoch, commit=False)
 
-                train_loss = train_epoch(
+                epoch_metrics = train_epoch(
                     self.model, dataloader=train_dataloader, optimizer=self.optimizer, criterion=criterion,
                     scheduler=self.scheduler, len_epoch=len_epoch
                 )
+                total_processed_tokens_cnt += epoch_metrics['tokens']
 
                 if self.scheduler is not None:
                     last_lr = self.scheduler.get_last_lr()
@@ -119,7 +132,9 @@ class ModelTrainer:
 
                 if logger is not None:
                     log_data = {
-                        'train/loss': train_loss.item(),
+                        'train/loss': epoch_metrics['loss'],
+                        'train/processed_tokens': total_processed_tokens_cnt,
+                        'train/grad_norm': epoch_metrics['grad_norm'],
                         # 'val/loss': val_loss.item(),
                         'lr': last_lr,
                     }
