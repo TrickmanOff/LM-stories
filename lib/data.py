@@ -89,11 +89,13 @@ class TinyStoriesTextDataset(TextDataset):
 class TokenizedTextDataset(Dataset):
     def __init__(self, text_dataset: TextDataset, encoder: TextEncoder,
                  data_dirpath: Union[str, Path],
+                 max_seq_len: Optional[int] = 256,
                  **kwargs):
         super().__init__()
         self._encoder = encoder
         self._text_dataset = text_dataset
         self._data_dirpath = Path(data_dirpath)
+        self._max_seq_len = max_seq_len
         self._tokenized_texts_data, self._tokenized_texts_index = self.get_or_load_tokenized_texts(**kwargs)
 
     def get_or_load_tokenized_texts(self, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
@@ -110,10 +112,12 @@ class TokenizedTextDataset(Dataset):
 
     def tokenize_texts(self, data_filepath: Path, index_filepath: Path, **kwargs):
         print('Tokenizing texts...')
-        tokens_seqs = [
-            np.array(self.encoder.encode(text, **kwargs), dtype=np.int16)
-            for text in tqdm(self._text_dataset)
-        ]
+        tokens_seqs = []
+        for text in tqdm(self._text_dataset):
+            encoded_text = np.array(self.encoder.encode(text, **kwargs), dtype=np.int16)
+            if self._max_seq_len is None or len(encoded_text) <= self._max_seq_len:
+                tokens_seqs.append(encoded_text)
+
         lens = np.array([0] + [len(seq) for seq in tokens_seqs], dtype=np.int64)
         cum_lens = np.cumsum(lens)
         flattened_tokens_seqs = np.hstack(tokens_seqs)
