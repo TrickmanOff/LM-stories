@@ -15,7 +15,7 @@ from tqdm import tqdm
 from lib.encoder import TextEncoder
 from lib.logger import MLLogger
 from lib.storage import ExternalStorage, RunStorage
-from lib.text_generator import GreedyGenerator
+from lib.text_generator import GreedyGenerator, RandomGenerator
 from lib.utils import get_device, get_grad_norm, get_lr, inf_loop
 
 
@@ -166,6 +166,8 @@ class ModelTrainer:
         }
         generators = {
             'greedy': GreedyGenerator(**gen_kwargs),
+            'random, t=0,5': RandomGenerator(temp=0.5, **gen_kwargs),
+            'random, t=1,0': RandomGenerator(temp=1., **gen_kwargs),
         }
 
         columns = ['prefix'] + list(generators.keys())
