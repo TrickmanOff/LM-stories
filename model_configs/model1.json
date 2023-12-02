@@ -1,0 +1,6 @@
+{
+  "embed_dim": 512,
+  "nhead": 8,
+  "ff_dim": 2048,
+  "num_layers": 4
+}

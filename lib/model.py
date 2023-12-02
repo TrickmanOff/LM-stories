@@ -3,7 +3,7 @@ from torch import Tensor, nn
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, embed_dim, max_len: int = 512):
+    def __init__(self, embed_dim, max_len: int = 5_000):
         """
         Inputs
             embed_dim - Hidden dimensionality of the input.
@@ -34,15 +34,17 @@ class PositionalEncoding(nn.Module):
 
 class SimpleTransformer(nn.Module):
     def __init__(self, embed_dim: int, vocab_size: int, max_len: int = 5_000,
-                 nhead: int = 8,
+                 nhead: int = 8, num_layers: int = 1, ff_dim: int = 2048,
                  **kwargs):
         super().__init__()
         self.embed = nn.Embedding(num_embeddings=vocab_size,
                                   embedding_dim=embed_dim,
                                   padding_idx=0)
         self.pos_encoder = PositionalEncoding(embed_dim, max_len=max_len)
-        self.transformer_encoder = nn.TransformerEncoderLayer(embed_dim, nhead, batch_first=True,
-                                                              **kwargs)
+        layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=nhead, batch_first=True,
+                                           dim_feedforward=ff_dim,
+                                           norm_first=True, **kwargs)
+        self.transformer_encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
 
         self.head = nn.Linear(embed_dim, vocab_size)
 

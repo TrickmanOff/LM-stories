@@ -36,7 +36,7 @@ def train(num_epochs: int = 10,
           run_name: Optional[str] = None,
           encoder_name: str = 'tiny_stories_encoder_4k',
           save_epochs_period: int = 1,
-          dtype: torch.dtype = torch.float32,
+          dtype: torch.dtype = torch.bfloat16,
           external_storage: Optional[ExternalStorage] = None):
     print('The training script is being run...')
 
@@ -70,7 +70,7 @@ def train(num_epochs: int = 10,
 
     # model
     device = get_device()
-    model = SimpleTransformer(vocab_size=encoder.vocab_size, **model_config)
+    model = SimpleTransformer(vocab_size=encoder.vocab_size, max_len=512, **model_config)
     print(f'Model has {get_params_count(model)} trainable parameters')
 
     model.to(dtype=dtype, device=device)
