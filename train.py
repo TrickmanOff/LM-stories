@@ -36,7 +36,6 @@ def train(model_name: str = 'test',
           run_name: Optional[str] = None,
           encoder_name: str = 'tiny_stories_encoder_4k',
           save_epochs_period: int = 1,
-          dtype: torch.dtype = torch.bfloat16,
           external_storage: Optional[ExternalStorage] = None,
           model_config: Optional[Dict] = None,
           train_config: Optional[Dict] = None):
@@ -75,7 +74,7 @@ def train(model_name: str = 'test',
     model = SimpleTransformer(vocab_size=encoder.vocab_size, max_len=512, **model_config)
     print(f'Model has {get_params_count(model)} trainable parameters')
 
-    model.to(dtype=dtype, device=device)
+    model.to(device=device)
 
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config['lr'])

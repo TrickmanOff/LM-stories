@@ -41,11 +41,12 @@ def train_epoch(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer,
     for batch_index, batch in enumerate(tqdm(dataloader, desc='Training epoch', total=total_len)):
         move_batch_to_device(batch)
         # batch['sequences']: (B, max_len)
-        next_tokens_logits = model(**batch)  # (B, max_len, vocab_size)
-        tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
-        tgt_tokens = batch['sequences'][:, 1:].to(device)  # (B, max_len-1)
+        with torch.cuda.amp.autocast():
+            next_tokens_logits = model(**batch)  # (B, max_len, vocab_size)
+            tokens_logits = next_tokens_logits[:, :-1].transpose(1, 2)  # (B, vocab_size, max_len-1)
+            tgt_tokens = batch['sequences'][:, 1:].to(device)  # (B, max_len-1)
 
-        loss = criterion(tokens_logits, tgt_tokens)
+            loss = criterion(tokens_logits, tgt_tokens)
 
         loss.backward()
         optimizer.step()
