@@ -31,7 +31,8 @@ class TinyStoriesTextDataset(TextDataset):
     def __init__(self, data_dir: Union[str, Path] = 'data/tiny-stories',
                  data_writeable_dir: Optional[Union[str, Path]] = None,
                  filtered_txts_filename: str = 'filtered.txt',
-                 max_text_len: int = 1_000):
+                 max_text_len: Optional[int] = 1_000,
+                 chunks_cnt: Optional[int] = None):
         if data_writeable_dir is None:
             data_writeable_dir = Path(data_dir)
         self._data_writeable_dir = data_writeable_dir
@@ -48,18 +49,20 @@ class TinyStoriesTextDataset(TextDataset):
             if len(chunks_filepaths) == 0:
                 self.download_dataset(self._dataset_dirpath)
                 chunks_filepaths = self.get_chunks()
+            if chunks_cnt is not None:
+                chunks_filepaths = chunks_filepaths[:chunks_cnt]
             self._process_texts(texts_filepath, chunks_filepaths, max_text_len)
         super().__init__(texts_filepath)
 
     @staticmethod
-    def _process_texts(target_filepath: Path, chunks_filepaths: List[Path], max_txt_len: int = 1_000):
+    def _process_texts(target_filepath: Path, chunks_filepaths: List[Path], max_text_len: Optional[int] = 1_000):
         print('Filtering texts...')
         with open(target_filepath, 'w') as out_file:
             for chunk_filepath in tqdm(chunks_filepaths):
                 chunk = json.load(open(chunk_filepath, 'r'))
                 for item in chunk:
                     txt = item['story'].replace('\n', ' ') + '\n'
-                    if len(txt) > max_txt_len:
+                    if max_text_len is not None and len(txt) > max_text_len:
                         continue
                     out_file.write(txt)
 
