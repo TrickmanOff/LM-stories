@@ -72,7 +72,7 @@ class SimpleTransformer(nn.Module):
         embed_sequences = self.pos_encoder(embed_sequences)  # (B, max_len, embed_dim)
 
         next_tokens_embeds = self.transformer_encoder(embed_sequences,
-                                                      src_mask=src_mask,
+                                                      mask=src_mask,
                                                       src_key_padding_mask=src_key_padding_mask,
                                                       is_causal=True)   # (B, max_len, embed_dim)
         next_tokens_logits = self.head(next_tokens_embeds)  # (B, max_len, vocab_size)

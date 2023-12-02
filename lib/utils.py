@@ -55,7 +55,7 @@ def get_grad_norm(model: nn.Module, norm_type=2) -> float:
     parameters = [p for p in parameters if p.grad is not None]
     total_norm = torch.norm(
         torch.stack(
-            [torch.norm(p.grad.detach(), norm_type).cpu() for p in parameters]
+            [torch.norm(p.grad.detach(), norm_type).float().cpu() for p in parameters]
         ),
         norm_type,
     )

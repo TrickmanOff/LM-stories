@@ -63,7 +63,7 @@ class RandomGenerator(TextGenerator):
         device = next(self._model.parameters()).device
         batch = torch.tensor(prefix_indices).unsqueeze(0).to(device)  # (1, len)
         while batch.shape[-1] - 2 < self._max_len and batch[0, -1] != self._encoder.EOS_ID:
-            next_token_logits = self._model(batch)[0, -1]  # (vocab_size,)
+            next_token_logits = self._model(batch)[0, -1].float()  # (vocab_size,)
             next_token_probs = F.softmax(next_token_logits / self.temp, dim=0)
             next_token = np.random.choice(range(len(next_token_logits)), p=next_token_probs.cpu().numpy(), size=1)[0]
             batch = torch.concat((batch, torch.tensor([[next_token]], device=device)), axis=-1)
