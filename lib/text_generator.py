@@ -53,9 +53,10 @@ class GreedyGenerator(TextGenerator):
 
 
 class RandomGenerator(TextGenerator):
-    def __init__(self, temp: float = 1., *args, **kwargs):
+    def __init__(self, temp: float = 1., top_k: Optional[int] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.temp = temp
+        self.top_k = top_k  # at each step take only k top probable tokens and then sample from them
 
     @torch.no_grad()
     def _generate_indices(self, prefix_indices: List[int]) -> List[int]:
@@ -63,9 +64,21 @@ class RandomGenerator(TextGenerator):
         device = next(self._model.parameters()).device
         batch = torch.tensor(prefix_indices).unsqueeze(0).to(device)  # (1, len)
         while batch.shape[-1] - 2 < self._max_len and batch[0, -1] != self._encoder.EOS_ID:
-            next_token_logits = self._model(batch)[0, -1].float()  # (vocab_size,)
-            next_token_probs = F.softmax(next_token_logits / self.temp, dim=0)
-            next_token = np.random.choice(range(len(next_token_logits)), p=next_token_probs.cpu().numpy(), size=1)[0]
+            next_token_logits = self._model(batch)[0, -1].float().cpu()  # (vocab_size,)
+            if self.temp == 0. or self.top_k is not None:
+                if self.temp == 0:
+                    considered_tokens = [next_token_logits.argmax()]
+                elif self.top_k is not None:
+                    considered_tokens = torch.argsort(next_token_logits)[-self.top_k:]
+                new_next_token_logits = torch.full_like(next_token_logits, -np.inf)
+                new_next_token_logits[considered_tokens] = next_token_logits[considered_tokens]
+                next_token_logits = new_next_token_logits
+
+            if self.temp != 0.:
+                next_token_logits /= self.temp
+
+            next_token_probs = F.softmax(next_token_logits, dim=0)
+            next_token = np.random.choice(range(len(next_token_logits)), p=next_token_probs.numpy(), size=1)[0]
             batch = torch.concat((batch, torch.tensor([[next_token]], device=device)), axis=-1)
 
         all_indices = batch.squeeze(0).tolist()
