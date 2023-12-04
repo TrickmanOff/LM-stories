@@ -36,11 +36,15 @@ def inf_loop(data_loader):
 def download_file(url, to_dirpath=None, to_filename=None):
     local_filename = to_filename or url.split('/')[-1]
     if to_dirpath is not None:
+        to_dirpath.mkdir(exist_ok=True, parents=True)
         local_filename = to_dirpath / local_filename
     chunk_size = 8192  # in bytes
     with requests.get(url, stream=True) as r:
-        total_size = int(r.headers['Content-length'])
-        total = (total_size + chunk_size - 1) // chunk_size
+        if 'Content-length' in r.headers:
+            total_size = int(r.headers['Content-length'])
+            total = (total_size + chunk_size - 1) // chunk_size
+        else:
+            total = None
         r.raise_for_status()
         with open(local_filename, 'wb') as f:
             for chunk in tqdm(r.iter_content(chunk_size=8192), total=total, desc='Downloading file'):
