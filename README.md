@@ -25,7 +25,7 @@ pip install -r requirements.txt
 Примеры конфигураций - в директории `model_configs`.
 
 Чтобы не ожидать обработки и токенизации всего датасета (занимает около получаса), можно загрузить уже
-токенизированный датасет: [файл1](https://drive.google.com/file/d/1GkZ7PR6F-mR-H9g4GVi9D5zXFXbYNy0a/view?usp=drive_link), [файл2](https://drive.google.com/file/d/1vTK0_R7xvTBzVPzfbI1uS5gBCXV_u6kL/view?usp=drive_link),
+токенизированный датасет: [файл1](https://disk.yandex.ru/d/sQ4q4eciNqrS4A), [файл2](https://disk.yandex.ru/d/ZtcSBAH9hdKNZA),
 оба файла необходимо разместить в директории, указанной в качестве `dataset_dir` в конфиге `config.paths.json`.
 
 Далее обучение запускается командой
